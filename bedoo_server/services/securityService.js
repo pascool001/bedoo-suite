@@ -102,8 +102,13 @@ const tokenBaseActivation = async (payload) => {
 
     try {
         const {__v, otp, createdAt, token, ...rest} = user.toJSON()
-        const newUser = await User.Create({...rest, is_active: true})
-        return { status: 200, message: "Votre compte a été activé avec succès. vous pouvez vous connecter à présent",  data: newUser }
+        const existingUser = await User.GetById(rest._id);
+        if (!existingUser) {
+          const newUser = await User.Create({...rest, is_active: true})
+          return { status: 200, message: "Votre compte a été activé avec succès. vous pouvez vous connecter à présent",  data: newUser }
+        } else {
+          return { status: 200, message: "Le compte utilisateur est déjà existant et activé.",  data: existingUser }
+        }
         
     } catch (error) {
         return { status: 401, message: error.message,  data: null }
@@ -146,12 +151,17 @@ const login = async (credentials) => {
     }
 
     try {
-      //generate access token
-      const accessToken = jwt.sign({userId: connectingUser._id}, SECRET, {expiresIn});
-      //generate access token
-      const refreshToken = jwt.sign({userId: connectingUser._id}, SECRET, {expiresIn: '7d'});
+      if (connectingUser.is_active) {
+        //generate access token
+        const accessToken = jwt.sign({userId: connectingUser._id}, SECRET, {expiresIn});
+        //generate access token
+        const refreshToken = jwt.sign({userId: connectingUser._id}, SECRET, {expiresIn: '7d'});
+  
+        return {status: 200,  message: 'vous êtes connectés', data: {accessToken, refreshToken}  }
 
-      return {status: 200,  message: 'vous êtes connectés', data: {accessToken, refreshToken}  }
+      } else {
+        return {status: 401,  message: 'Votre compte est désactivé, veuillez contacter l`\'administrateur du systeme. ', data: null }
+      }
         
     } catch (error) {
         console.log('Server Error: ', error)
